@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapLogic Sizing Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab.active {
+            border-color: #64748b; /* slate-500 */
+            background-color: #ffffff;
+            color: #1e293b; /* slate-800 */
+            font-weight: 700;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .dark .tab.active {
+            background-color: #0f172a; /* slate-900 */
+            border-color: #94a3b8; /* slate-400 */
+            color: #f1f5f9; /* slate-100 */
+        }
+        .unit-selector button.active {
+            background-color: #475569; /* slate-600 */
+            color: white;
+            border-color: #475569; /* slate-600 */
+            font-weight: 600;
+        }
+        .dark .unit-selector button.active {
+            background-color: #475569; /* slate-600 */
+            border-color: #64748b; /* slate-500 */
+            color: #f8fafc; /* slate-50 */
+        }
+        .result-card-container {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .dark .result-card-container {
+            background: #1e293b; /* slate-800 */
+            border-color: #334155; /* slate-700 */
+        }
+        .toggle-switch-container {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 32px;
+        }
+        .toggle-switch-container input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 32px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        input:checked + .slider {
+            background-color: #64748b; /* slate-500 */
+        }
+        .dark input:not(:checked) + .slider {
+             background-color: #475569; /* slate-600 */
+        }
+        .dark input:checked + .slider {
+             background-color: #94a3b8; /* slate-400 */
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .detailed-view-content {
+            display: none;
+            transition: all 0.3s ease-in-out;
+        }
+        body.detailed-view-active .detailed-view-content {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-slate-200 dark:from-slate-900 dark:to-slate-800 text-gray-800 dark:text-slate-300 transition-colors duration-300">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-5xl relative">
+        <header class="text-center mb-6">
+            <img src="https://www.snaplogic.com/wp-content/uploads/2022/09/SL_logo_blue_web.png" alt="SnapLogic Logo" class="h-12 mx-auto mb-4">
+            <h1 class="text-4xl font-extrabold text-gray-800 dark:text-slate-100 tracking-tight">SnapLogic Sizing Calculator</h1>
+            <p class="text-gray-600 dark:text-slate-400 mt-2 text-lg">Estimate the nodes required for your SnapLogic workloads.</p>
+        </header>
+        
+        <div class="absolute top-4 right-4">
+             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-slate-700 rounded-lg text-sm p-2.5 transition-all">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM5 11a1 1 0 100-2H4a1 1 0 100 2h1zM8 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1z"></path></svg>
+            </button>
+        </div>
+        
+        <div class="flex justify-center items-center mb-6 space-x-3">
+            <span class="font-medium text-gray-700 dark:text-slate-300">Detailed View</span>
+            <label class="toggle-switch-container">
+                <input type="checkbox" id="detailed-view-toggle" onchange="toggleDetailedView()">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-2 sm:p-4 rounded-xl shadow-lg">
+        <!-- Tabs -->
+        <div class="flex flex-wrap border-b border-gray-200 dark:border-slate-700 mb-6">
+            <button class="tab active flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'triggered')">Triggered Task</button>
+            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'ultra')">Ultra Task</button>
+            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'scheduled')">Scheduled Task</button>
+            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'headless')">Headless Ultra</button>
+        </div>
+
+        <!-- Triggered Task Tab -->
+        <div id="triggered" class="tab-content">
+            <div class="p-2 sm:p-6">
+                <form id="form-triggered">
+                    <div class="mb-6">
+                        <label for="api-requests-triggered" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">API Requests Volume</label>
+                        <input type="number" id="api-requests-triggered" value="300000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="api-requests-triggered" data-calculator="triggered">
+                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                            <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perYear')">Per Year</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div>
+                            <label for="coverage-days-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Days per Month</label>
+                            <input type="number" id="coverage-days-triggered" value="30" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                        <div>
+                            <label for="coverage-hours-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
+                            <input type="number" id="coverage-hours-triggered" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                         <div>
+                            <label for="peak-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
+                            <input type="number" id="peak-triggered" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                    </div>
+                    <button type="button" onclick="calculateTriggered()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
+                </form>
+                <div id="result-triggered" class="mt-8"></div>
+            </div>
+        </div>
+
+        <!-- Ultra Task Tab -->
+        <div id="ultra" class="tab-content hidden">
+             <div class="p-2 sm:p-6">
+                <form id="form-ultra">
+                    <div class="mb-6">
+                        <label for="api-requests-ultra" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">API Requests Volume</label>
+                        <input type="number" id="api-requests-ultra" value="100000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="api-requests-ultra" data-calculator="ultra">
+                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                             <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perYear')">Per Year</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div>
+                            <label for="coverage-days-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Days per Month</label>
+                            <input type="number" id="coverage-days-ultra" value="20" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                        <div>
+                            <label for="coverage-hours-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
+                            <input type="number" id="coverage-hours-ultra" value="12" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                         <div>
+                            <label for="peak-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
+                            <input type="number" id="peak-ultra" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                    </div>
+                    <button type="button" onclick="calculateUltra()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
+                </form>
+                <div id="result-ultra" class="mt-8"></div>
+            </div>
+        </div>
+
+        <!-- Scheduled Task Tab -->
+        <div id="scheduled" class="tab-content hidden">
+            <div class="p-2 sm:p-6">
+                <form id="form-scheduled">
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-2">
+                           <label id="batch-size-label" for="batch-size" class="block text-lg font-semibold text-gray-800 dark:text-slate-200">Batch Size (GB)</label>
+                           <div class="flex items-center space-x-3">
+                                <span class="text-sm font-medium text-gray-600 dark:text-slate-400">Toggle to Rows</span>
+                                <label class="toggle-switch-container">
+                                    <input type="checkbox" id="toggle-switch-scheduled" onchange="toggleBatchMode()">
+                                    <span class="slider"></span>
+                                </label>
+                           </div>
+                        </div>
+                        <input type="number" id="batch-size" value="300" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label for="process-time" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Batch Window (Hours)</label>
+                            <input type="number" id="process-time" value="12" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                        <div>
+                            <label for="complexity-multiplier" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Transformation Complexity</label>
+                            <select id="complexity-multiplier" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                                <option value="1">Straight Pass-through</option>
+                                <option value="1.25">Few Sorts/Aggregations</option>
+                                <option value="1.5" selected>Moderate Sorts/Aggregations</option>
+                                <option value="2">Many Sorts/Aggregations</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" onclick="calculateScheduled()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
+                </form>
+                <div id="result-scheduled" class="mt-8"></div>
+            </div>
+        </div>
+
+        <!-- Headless Ultra Tab -->
+        <div id="headless" class="tab-content hidden">
+            <div class="p-2 sm:p-6">
+                <form id="form-headless">
+                     <div class="flex items-center justify-between mb-6 p-4 bg-gray-100 dark:bg-slate-900/50 rounded-lg">
+                           <label class="block text-lg font-semibold text-gray-800 dark:text-slate-200">Sizing Method</label>
+                           <div class="flex items-center space-x-3">
+                                <span class="text-sm font-medium text-gray-600 dark:text-slate-400 text-right">Data Volume <br class="hidden sm:inline">/ Event Freq.</span>
+                                <label class="toggle-switch-container">
+                                    <input type="checkbox" id="toggle-switch-headless" onchange="toggleHeadlessMode()" checked>
+                                    <span class="slider"></span>
+                                </label>
+                           </div>
+                        </div>
+
+                    <!-- Microbatching ON -->
+                    <div id="headless-microbatching-on">
+                        <div class="mb-6">
+                            <label for="events-headless" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">Event Volume</label>
+                            <input type="number" id="events-headless" value="20000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                             <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="events-headless" data-calculator="headless">
+                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                                <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perYear')">Per Year</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div>
+                                <label for="coverage-hours-headless-on" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
+                                <input type="number" id="coverage-hours-headless-on" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                            <div>
+                                <label for="peak-headless-on" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
+                                <input type="number" id="peak-headless-on" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Microbatching OFF -->
+                     <div id="headless-microbatching-off" class="hidden">
+                        <div class="mb-6">
+                            <label for="events-headless-off" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">Event Volume (Per Day)</label>
+                            <input type="number" id="events-headless-off" value="20000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                             <div>
+                                <label for="event-size-headless" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Avg. Message Size (Bytes)</label>
+                                <input type="number" id="event-size-headless" value="2000" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                            <div>
+                                <label for="coverage-hours-headless-off" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
+                                <input type="number" id="coverage-hours-headless-off" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                            <div>
+                                <label for="peak-headless-off" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
+                                <input type="number" id="peak-headless-off" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                             <div>
+                                <label for="complexity-headless" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Complexity Multiplier</label>
+                                <input type="number" id="complexity-headless" value="1" step="0.1" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" onclick="calculateHeadlessUltra()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
+                </form>
+                <div id="result-headless" class="mt-8"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Central Configuration Object ---
+        const configurationOptions = {
+            ha: {
+                bufferMultiplier: 1.3,
+                minNodes: 2,
+            },
+            triggered: {
+                requestsPerNodePerSecond: 20, 
+            },
+            ultra: {
+                exec: {
+                    requestsPerNodePerSecond: 100,
+                    assumedResponseTime: 0.3,
+                },
+                fm: {
+                    requestsPerNodePerSecond: 200,
+                    assumedResponseTime: 0.3,
+                }
+            },
+            scheduled: {
+                mbPerMinutePerNode: 300,
+                rowsToGbDivisor: 5000000,
+            },
+            headless: {
+                mbPerMinutePerNode: 150,
+                bytesToGbEqDivisor: 10000000000,
+                requestsPerNodePerSecond: 100,
+                assumedResponseTime: 0.3,
+            }
+        };
+
+        // --- Theme Toggle ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Set initial icon
+        if (document.documentElement.classList.contains('dark')) {
+            themeToggleLightIcon.classList.remove('hidden');
+        } else {
+            themeToggleDarkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+
+            const isDark = localStorage.getItem('color-theme') === 'dark' || 
+                           (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        });
+
+
+        // --- Core UI Functions ---
+        let activeTab = 'triggered';
+        function openTab(event, tabName) {
+            activeTab = tabName;
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName).classList.remove('hidden');
+            event.currentTarget.classList.add('active');
+        }
+
+        function toggleDetailedView() {
+            const isChecked = document.getElementById('detailed-view-toggle').checked;
+            if (isChecked) {
+                document.body.classList.add('detailed-view-active');
+            } else {
+                document.body.classList.remove('detailed-view-active');
+            }
+        }
+
+
+        // --- Unit Conversion Logic ---
+        let currentUnits = {
+            triggered: 'perYear',
+            ultra: 'perYear',
+            headless: 'perDay'
+        };
+
+        function updateUnit(button, newUnit) {
+            const selector = button.closest('.unit-selector');
+            const calculatorType = selector.dataset.calculator;
+
+            selector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            currentUnits[calculatorType] = newUnit;
+        }
+        
+        function getAverageRequestsPerSecond(value, unit, coverageDays, coverageHours) {
+            if (isNaN(value) || value === 0 || isNaN(coverageDays) || coverageDays === 0 || isNaN(coverageHours) || coverageHours === 0) return 0;
+            
+            switch (unit) {
+                case 'perSecond': return value;
+                case 'perMinute': return value / 60;
+                case 'perHour':   return value / 3600;
+                case 'perDay':    return value / (coverageHours * 3600);
+                case 'perMonth':  return value / (coverageDays * coverageHours * 3600);
+                case 'perYear':   return value / (12 * coverageDays * coverageHours * 3600);
+                default: return 0;
+            }
+        }
+        
+        // --- Scheduled/Headless Task UI Toggles ---
+        function toggleBatchMode() {
+            const isChecked = document.getElementById('toggle-switch-scheduled').checked;
+            const label = document.getElementById('batch-size-label');
+            const input = document.getElementById('batch-size');
+            if (isChecked) { // Switched to Rows
+                label.textContent = 'Batch Volume (Rows)';
+                input.value = 1500000000;
+            } else { // Switched to GB
+                label.textContent = 'Batch Size (GB)';
+                input.value = 300;
+            }
+        }
+        
+        function toggleHeadlessMode() {
+            const isChecked = document.getElementById('toggle-switch-headless').checked;
+            const onDiv = document.getElementById('headless-microbatching-on');
+            const offDiv = document.getElementById('headless-microbatching-off');
+
+            if (isChecked) { // Microbatching ON (Event Frequency)
+                onDiv.classList.remove('hidden');
+                offDiv.classList.add('hidden');
+            } else { // Microbatching OFF (Data Volume)
+                onDiv.classList.add('hidden');
+                offDiv.classList.remove('hidden');
+            }
+        }
+        
+        function generateResultCard(title, results, details, detailsExtra = null) {
+            let detailsHtml = '<div class="grid sm:grid-cols-2 gap-4">';
+            details.forEach(detail => {
+                detailsHtml += `
+                    <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg text-center sm:text-left">
+                        <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detail.label}</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${detail.value}</p>
+                    </div>
+                `;
+            });
+            detailsHtml += '</div>';
+
+            let extraDetailsHtml = '';
+            if (detailsExtra) {
+                let headroomAvgHtml = '';
+                if (detailsExtra.avg) {
+                     headroomAvgHtml = `
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.avg.label}</p>
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${detailsExtra.avg.value}%</p>
+                        </div>
+                    `;
+                }
+
+                extraDetailsHtml = `
+                    <div class="detailed-view-content mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h4 class="text-lg font-semibold text-gray-700 dark:text-slate-300 mb-2">Maximum Capacity of Calculated HA Nodes</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                                <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.raw.label}</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${detailsExtra.raw.value}</p>
+                            </div>
+                            <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                                <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.peak.label}</p>
+                                <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${detailsExtra.peak.value}%</p>
+                            </div>
+                            ${headroomAvgHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let resultsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">`;
+            results.forEach(result => {
+                resultsHtml += `
+                    <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
+                        <p class="text-lg font-medium text-slate-800 dark:text-slate-300">${result.label}</p>
+                        <p class="text-6xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${result.value}</p>
+                    </div>
+                `;
+            });
+            resultsHtml += `</div>`;
+
+
+            return `
+                <div class="result-card-container">
+                    <h3 class="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-4">${title}</h3>
+                    ${detailsHtml}
+                    ${extraDetailsHtml}
+                    ${resultsHtml}
+                </div>
+            `;
+        }
+
+
+        // --- Calculation Functions ---
+        function calculateTriggered() {
+            const config = configurationOptions;
+            const requests = parseFloat(document.getElementById('api-requests-triggered').value) || 0;
+            const unit = currentUnits.triggered;
+            const coverageDays = parseFloat(document.getElementById('coverage-days-triggered').value) || 30;
+            const coverageHours = parseFloat(document.getElementById('coverage-hours-triggered').value) || 24;
+            const peak = parseFloat(document.getElementById('peak-triggered').value) || 100;
+
+            const avgRequestsPerSecond = getAverageRequestsPerSecond(requests, unit, coverageDays, coverageHours);
+            const concurrentAPI = avgRequestsPerSecond * (peak / 100);
+
+            const effectiveNodeThroughput = config.triggered.requestsPerNodePerSecond;
+            const nodesRequired = effectiveNodeThroughput > 0 ? concurrentAPI / effectiveNodeThroughput : Infinity;
+            
+            const nonHaNodesRequired = Math.ceil(nodesRequired);
+            const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
+            
+            const maxCapacity = haNodesRequired * effectiveNodeThroughput;
+            const capacityHeadroomPeak = concurrentAPI > 0 ? ((maxCapacity / concurrentAPI) - 1) * 100 : 0;
+            const capacityHeadroomAvg = avgRequestsPerSecond > 0 ? ((maxCapacity / avgRequestsPerSecond) - 1) * 100 : 0;
+
+            const details = [
+                { label: 'Avg. Concurrent API Requests', value: `${avgRequestsPerSecond.toFixed(2)} / sec`},
+                { label: 'Peak Concurrent API Requests', value: `${concurrentAPI.toFixed(2)} / sec`},
+                { label: 'Effective Throughput / Node', value: `${effectiveNodeThroughput.toFixed(2)} / sec`},
+                { label: 'Raw Nodes Required', value: nodesRequired.toFixed(2) }
+            ];
+            
+            const results = [
+                 { label: 'Nodes Required (Non-HA)', value: nonHaNodesRequired },
+                 { label: 'Nodes Required (HA)', value: haNodesRequired }
+            ];
+
+            const detailsExtra = {
+                raw: { label: 'Max Concurrent Requests', value: `${maxCapacity.toFixed(2)} / sec` },
+                peak: { label: 'Headroom vs. Peak', value: capacityHeadroomPeak.toFixed(1) },
+                avg: { label: 'Headroom vs. Average', value: capacityHeadroomAvg.toFixed(1) }
+            };
+
+            document.getElementById('result-triggered').innerHTML = generateResultCard(
+                'Triggered Task Sizing',
+                results,
+                details,
+                detailsExtra
+            );
+        }
+        
+        function calculateUltra() {
+            const config = configurationOptions;
+            const requests = parseFloat(document.getElementById('api-requests-ultra').value) || 0;
+            const unit = currentUnits.ultra;
+            const coverageDays = parseFloat(document.getElementById('coverage-days-ultra').value) || 20;
+            const coverageHours = parseFloat(document.getElementById('coverage-hours-ultra').value) || 12;
+            const peak = parseFloat(document.getElementById('peak-ultra').value) || 100;
+            const assumedResponseTime = config.ultra.exec.assumedResponseTime;
+
+            const avgRequestsPerSecond = getAverageRequestsPerSecond(requests, unit, coverageDays, coverageHours);
+            const concurrentAPI = avgRequestsPerSecond * (peak / 100);
+            
+            const effectiveExecNodeThroughput = assumedResponseTime > 0 ? (config.ultra.exec.requestsPerNodePerSecond / assumedResponseTime) : 0;
+            const execNodes = effectiveExecNodeThroughput > 0 ? concurrentAPI / effectiveExecNodeThroughput : Infinity;
+            const nonHaExecNodes = Math.ceil(execNodes);
+            const haExecNodes = Math.ceil(Math.max(execNodes * config.ha.bufferMultiplier, config.ha.minNodes));
+
+            const effectiveFmNodeThroughput = assumedResponseTime > 0 ? (config.ultra.fm.requestsPerNodePerSecond / assumedResponseTime) : 0;
+            const fmNodes = effectiveFmNodeThroughput > 0 ? concurrentAPI / effectiveFmNodeThroughput : Infinity;
+            const nonHaFmNodes = Math.ceil(fmNodes);
+            const haFmNodes = Math.ceil(Math.max(fmNodes * config.ha.bufferMultiplier, config.ha.minNodes));
+
+            const maxCapacity = haExecNodes * effectiveExecNodeThroughput;
+            const capacityHeadroomPeak = concurrentAPI > 0 ? ((maxCapacity / concurrentAPI) - 1) * 100 : 0;
+            const capacityHeadroomAvg = avgRequestsPerSecond > 0 ? ((maxCapacity / avgRequestsPerSecond) - 1) * 100 : 0;
+            
+            const detailedViewHtml = `
+                <div class="detailed-view-content mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <h4 class="text-lg font-semibold text-gray-700 dark:text-slate-300 mb-2">Maximum Capacity of Calculated HA Nodes</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Max Concurrent Requests</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${maxCapacity.toFixed(2)} / sec</p>
+                        </div>
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Headroom vs. Peak</p>
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${capacityHeadroomPeak.toFixed(1)}%</p>
+                        </div>
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Headroom vs. Average</p>
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${capacityHeadroomAvg.toFixed(1)}%</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const resultHTML = `
+                <div class="result-card-container">
+                    <h3 class="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-4">Ultra Task Sizing</h3>
+                    <div class="grid sm:grid-cols-2 gap-4 mb-4">
+                         <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Avg. Concurrent Requests</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${avgRequestsPerSecond.toFixed(2)} / sec</p>
+                        </div>
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Peak Concurrent Requests</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${concurrentAPI.toFixed(2)} / sec</p>
+                        </div>
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Eff. Throughput / Exec Node</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${effectiveExecNodeThroughput.toFixed(2)} / sec</p>
+                        </div>
+                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
+                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Eff. Throughput / FM Node</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${effectiveFmNodeThroughput.toFixed(2)} / sec</p>
+                        </div>
+                    </div>
+                    ${detailedViewHtml}
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">Exec Nodes (Non-HA)</p>
+                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${nonHaExecNodes}</p>
+                        </div>
+                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">Exec Nodes (HA)</p>
+                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${haExecNodes}</p>
+                        </div>
+                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">FeedMaster (Non-HA)</p>
+                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${nonHaFmNodes}</p>
+                        </div>
+                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">FeedMaster (HA)</p>
+                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${haFmNodes}</p>
+                        </div>
+                    </div>
+                </div>`;
+            
+            document.getElementById('result-ultra').innerHTML = resultHTML;
+        }
+        
+        function calculateScheduled() {
+            const config = configurationOptions;
+            const batchSizeInput = parseFloat(document.getElementById('batch-size').value) || 0;
+            const processTime = parseFloat(document.getElementById('process-time').value) || 12;
+            const complexityMultiplier = parseFloat(document.getElementById('complexity-multiplier').value) || 1.5;
+            const isRows = document.getElementById('toggle-switch-scheduled').checked;
+
+            let batchSizeGb = batchSizeInput;
+            if (isRows) {
+                batchSizeGb = batchSizeInput / config.scheduled.rowsToGbDivisor;
+            }
+
+            const mbPerMinute = processTime > 0 ? (batchSizeGb * 1024) / (processTime * 60) : 0;
+            const nodesRequired = mbPerMinute > 0 ? (mbPerMinute * complexityMultiplier) / config.scheduled.mbPerMinutePerNode : 0;
+            const nonHaNodesRequired = Math.ceil(nodesRequired);
+            const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
+            
+            const maxCapacity = (haNodesRequired * config.scheduled.mbPerMinutePerNode) / complexityMultiplier;
+            const capacityHeadroom = mbPerMinute > 0 ? ((maxCapacity / mbPerMinute) - 1) * 100 : 0;
+
+            const details = [
+                { label: 'Required Throughput', value: `${mbPerMinute.toFixed(2)} MB/min` },
+                { label: 'Raw Nodes Required', value: nodesRequired.toFixed(2) }
+            ];
+            
+             const results = [
+                 { label: 'Nodes Required (Non-HA)', value: nonHaNodesRequired },
+                 { label: 'Nodes Required (HA)', value: haNodesRequired }
+            ];
+
+            const detailsExtra = {
+                raw: { label: 'Max Throughput', value: `${maxCapacity.toFixed(2)} MB/min` },
+                peak: { label: 'Capacity Headroom', value: capacityHeadroom.toFixed(1) },
+                avg: null
+            };
+
+            document.getElementById('result-scheduled').innerHTML = generateResultCard(
+                'Scheduled Task Sizing',
+                results,
+                details,
+                detailsExtra
+            );
+        }
+
+        function calculateHeadlessUltra() {
+            const config = configurationOptions;
+            const isMicrobatching = document.getElementById('toggle-switch-headless').checked;
+            
+            if (isMicrobatching) {
+                const events = parseFloat(document.getElementById('events-headless').value) || 0;
+                const unit = currentUnits.headless;
+                const coverageDaysForUnit = (unit === 'perMonth') ? 30.42 : (unit === 'perYear' ? 365 : 1);
+                const coverageHours = parseFloat(document.getElementById('coverage-hours-headless-on').value) || 24;
+
+                const avgEventsPerSecond = getAverageRequestsPerSecond(events, unit, coverageDaysForUnit, coverageHours);
+                const peak = parseFloat(document.getElementById('peak-headless-on').value) || 100;
+
+                const concurrentEvents = avgEventsPerSecond * (peak / 100);
+                const assumedResponseTime = config.headless.assumedResponseTime;
+                const effectiveNodeThroughput = assumedResponseTime > 0 ? (config.headless.requestsPerNodePerSecond / assumedResponseTime) : 0;
+
+                const nodesRequired = effectiveNodeThroughput > 0 ? concurrentEvents / effectiveNodeThroughput : Infinity;
+                const nonHaNodesRequired = Math.ceil(nodesRequired);
+                const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
+                
+                const maxCapacity = haNodesRequired * effectiveNodeThroughput;
+                const capacityHeadroomPeak = concurrentEvents > 0 ? ((maxCapacity / concurrentEvents) - 1) * 100 : 0;
+                const capacityHeadroomAvg = avgEventsPerSecond > 0 ? ((maxCapacity / avgEventsPerSecond) - 1) * 100 : 0;
+
+                const details = [
+                    { label: 'Avg. Concurrent Events', value: `${avgEventsPerSecond.toFixed(2)} / sec` },
+                    { label: 'Peak Concurrent Events', value: `${concurrentEvents.toFixed(2)} / sec` },
+                    { label: 'Effective Throughput / Node', value: `${effectiveNodeThroughput.toFixed(2)} / sec`},
+                ];
+                
+                const results = [
+                     { label: 'Exec Nodes (Non-HA)', value: nonHaNodesRequired },
+                     { label: 'Exec Nodes (HA)', value: haNodesRequired }
+                ];
+
+                const detailsExtra = {
+                    raw: { label: 'Max Concurrent Events', value: `${maxCapacity.toFixed(2)} / sec` },
+                    peak: { label: 'Headroom vs. Peak', value: capacityHeadroomPeak.toFixed(1) },
+                    avg: { label: 'Headroom vs. Average', value: capacityHeadroomAvg.toFixed(1) }
+                };
+                
+                document.getElementById('result-headless').innerHTML = generateResultCard(
+                    'Headless Ultra Sizing (Event Freq.)',
+                    results,
+                    details,
+                    detailsExtra
+                );
+
+            } else { // Data Volume Method
+                const eventsPerDay = parseFloat(document.getElementById('events-headless-off').value) || 0;
+                const messageSize = parseFloat(document.getElementById('event-size-headless').value) || 2000;
+                const coverageHours = parseFloat(document.getElementById('coverage-hours-headless-off').value) || 24;
+                const peak = parseFloat(document.getElementById('peak-headless-off').value) || 100;
+                const complexity = parseFloat(document.getElementById('complexity-headless').value) || 1;
+
+                const batchSizeGbEq = (messageSize * eventsPerDay) / config.headless.bytesToGbEqDivisor;
+                const avgMbPerMinute = coverageHours > 0 ? (batchSizeGbEq * 1024) / (coverageHours * 60) : 0;
+                const peakMbPerMinute = avgMbPerMinute * (peak / 100);
+
+                const nodesRequired = peakMbPerMinute > 0 ? (peakMbPerMinute * complexity) / config.headless.mbPerMinutePerNode : 0;
+                const nonHaNodesRequired = Math.ceil(nodesRequired);
+                const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
+                
+                const maxCapacity = (haNodesRequired * config.headless.mbPerMinutePerNode) / complexity;
+                const capacityHeadroomPeak = peakMbPerMinute > 0 ? ((maxCapacity / peakMbPerMinute) - 1) * 100 : 0;
+                const capacityHeadroomAvg = avgMbPerMinute > 0 ? ((maxCapacity / avgMbPerMinute) - 1) * 100 : 0;
+                
+                const details = [
+                    { label: 'Avg. Throughput', value: `${avgMbPerMinute.toFixed(2)} MB/min` },
+                    { label: 'Peak Throughput', value: `${peakMbPerMinute.toFixed(2)} MB/min` }
+                ];
+                
+                const results = [
+                     { label: 'Exec Nodes (Non-HA)', value: nonHaNodesRequired },
+                     { label: 'Exec Nodes (HA)', value: haNodesRequired }
+                ];
+
+                const detailsExtra = {
+                    raw: { label: 'Max Throughput', value: `${maxCapacity.toFixed(2)} MB/min` },
+                    peak: { label: 'Headroom vs. Peak', value: capacityHeadroomPeak.toFixed(1) },
+                    avg: { label: 'Headroom vs. Average', value: capacityHeadroomAvg.toFixed(1) }
+                };
+
+                 document.getElementById('result-headless').innerHTML = generateResultCard(
+                    'Headless Ultra Sizing (Data Volume)',
+                    results,
+                    details,
+                    detailsExtra
+                );
+            }
+        }
+        
+        // Initial calculation on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            calculateTriggered();
+        });
+
+    </script>
+
+</body>
+</html>
+
