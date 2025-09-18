@@ -4,1193 +4,376 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapLogic Sizing Calculator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .tab.active {
-            border-color: #64748b; /* slate-500 */
-            background-color: #ffffff;
-            color: #1e293b; /* slate-800 */
-            font-weight: 700;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .dark .tab.active {
-            background-color: #0f172a; /* slate-900 */
-            border-color: #94a3b8; /* slate-400 */
-            color: #f1f5f9; /* slate-100 */
-        }
-        .unit-selector button.active {
-            background-color: #475569; /* slate-600 */
-            color: white;
-            border-color: #475569; /* slate-600 */
-            font-weight: 600;
-        }
-        .dark .unit-selector button.active {
-            background-color: #475569; /* slate-600 */
-            border-color: #64748b; /* slate-500 */
-            color: #f8fafc; /* slate-50 */
-        }
-        .result-card-container {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            transition: background-color 0.3s, border-color 0.3s;
-        }
-        .dark .result-card-container {
-            background: #1e293b; /* slate-800 */
-            border-color: #334155; /* slate-700 */
-        }
-        .toggle-switch-container {
-            position: relative;
-            display: inline-block;
-            width: 52px;
-            height: 32px;
-        }
-        .toggle-switch-container input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #cbd5e1;
-            transition: .4s;
-            border-radius: 32px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 24px;
-            width: 24px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        input:checked + .slider {
-            background-color: #64748b; /* slate-500 */
-        }
-        .dark input:not(:checked) + .slider {
-             background-color: #475569; /* slate-600 */
-        }
-        .dark input:checked + .slider {
-             background-color: #94a3b8; /* slate-400 */
-        }
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-        .detailed-view-content {
-            display: none;
-            transition: all 0.3s ease-in-out;
-        }
-        body.detailed-view-active .detailed-view-content {
-            display: block;
-        }
-        #export-modal pre {
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="index.css">
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-slate-200 dark:from-slate-900 dark:to-slate-800 text-gray-800 dark:text-slate-300 transition-colors duration-300">
-
-    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-5xl relative">
-        <header class="text-center mb-6">
-            <img src="https://www.snaplogic.com/wp-content/uploads/2022/09/SL_logo_blue_web.png" alt="SnapLogic Logo" class="h-12 mx-auto mb-4">
-            <h1 class="text-4xl font-extrabold text-gray-800 dark:text-slate-100 tracking-tight">SnapLogic Sizing Calculator</h1>
-            <p class="text-gray-600 dark:text-slate-400 mt-2 text-lg">Estimate the nodes required for your SnapLogic workloads.</p>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="https://www.snaplogic.com/wp-content/uploads/2022/09/SL_logo_blue_web.png" alt="SnapLogic Logo" class="logo">
+            <h1 class="main-title">SnapLogic Sizing Calculator</h1>
+            <p class="subtitle">Estimate the nodes required for your SnapLogic workloads</p>
         </header>
-        
-        <div class="absolute top-4 right-4">
-             <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-slate-700 rounded-lg text-sm p-2.5 transition-all">
-                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 5.05a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM5 11a1 1 0 100-2H4a1 1 0 100 2h1zM8 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1z"></path></svg>
-            </button>
-        </div>
-        
-        <div class="flex justify-center items-center mb-6 space-x-3">
-            <span class="font-medium text-gray-700 dark:text-slate-300">Detailed View</span>
-            <label class="toggle-switch-container">
-                <input type="checkbox" id="detailed-view-toggle" onchange="toggleDetailedView()">
-                <span class="slider"></span>
-            </label>
-        </div>
 
-        <div class="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-2 sm:p-4 rounded-xl shadow-lg">
-        <!-- Tabs -->
-        <div class="flex flex-wrap border-b border-gray-200 dark:border-slate-700 mb-6">
-            <button class="tab active flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'triggered')">Triggered Task</button>
-            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'ultra')">Ultra Task</button>
-            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'scheduled')">Scheduled Task</button>
-            <button class="tab flex-grow sm:flex-grow-0 text-center text-base sm:text-lg py-3 px-4 sm:px-6 border-b-2 rounded-t-lg border-transparent text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition" onclick="openTab(event, 'headless')">Headless Ultra</button>
-        </div>
 
-        <!-- Triggered Task Tab -->
-        <div id="triggered" class="tab-content">
-            <div class="p-2 sm:p-6">
-                <form id="form-triggered">
-                    <div class="mb-6">
-                        <label for="api-requests-triggered" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">API Requests Volume</label>
-                        <input type="number" id="api-requests-triggered" value="300000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                        <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="api-requests-triggered" data-calculator="triggered">
-                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
-                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
-                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
-                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perDay')">Per Day</button>
-                            <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
-                            <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perYear')">Per Year</button>
-                        </div>
+        <div class="main-card">
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <button class="tab active" onclick="openTab(event, 'triggered')">Triggered Task</button>
+                <button class="tab" onclick="openTab(event, 'ultra')">Ultra Task</button>
+                <button class="tab" onclick="openTab(event, 'scheduled')">Scheduled Task</button>
+                <button class="tab" onclick="openTab(event, 'headless')">Headless Ultra</button>
+                <button class="tab" onclick="openTab(event, 'prediction')">Throughput Prediction</button>
+            </div>
+
+            <!-- Triggered Task Tab -->
+            <div id="triggered" class="tab-content">
+
+                <div class="form-group">
+                    <label for="api-requests-triggered" class="form-label">API Requests Volume</label>
+                    <input type="number" id="api-requests-triggered" value="300000000" class="form-input">
+                    <div class="unit-selector" data-target="api-requests-triggered" data-calculator="triggered">
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                        <button type="button" class="unit-button active" onclick="updateUnit(this, 'perYear')">Per Year</button>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                </div>
+
+                <div class="form-group">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         <div>
-                            <label for="coverage-days-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Days per Month</label>
-                            <input type="number" id="coverage-days-triggered" value="30" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            <label for="coverage-days-triggered" class="form-label-small">Usage Days per Month</label>
+                            <input type="number" id="coverage-days-triggered" value="30" class="form-input">
                         </div>
                         <div>
-                            <label for="coverage-hours-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
-                            <input type="number" id="coverage-hours-triggered" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            <label for="coverage-hours-triggered" class="form-label-small">Usage Hours per Day</label>
+                            <input type="number" id="coverage-hours-triggered" value="24" class="form-input">
                         </div>
-                         <div>
-                            <label for="peak-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
-                            <input type="number" id="peak-triggered" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                        <div>
+                            <label for="peak-triggered" class="form-label-small">Peak Load (%)</label>
+                            <input type="number" id="peak-triggered" value="150" class="form-input">
                         </div>
-                         <div>
-                            <label for="complexity-triggered" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Complexity</label>
-                            <select id="complexity-triggered" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                                <option value="simple">Simple (1s)</option>
-                                <option value="moderate">Moderate (2.5s)</option>
-                                <option value="complex">Complex (7s)</option>
-                                <option value="veryComplex">Very Complex (15s)</option>
+                        <div>
+                            <label for="complexity-triggered" class="form-label-small">Complexity</label>
+                            <select id="complexity-triggered" class="form-select">
+                                <option value="simple" selected>Simple</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="complex">Complex</option>
+                                <option value="veryComplex">Very Complex</option>
                             </select>
                         </div>
                     </div>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <button type="button" onclick="calculateTriggered()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
-                        <button type="button" onclick="exportData('triggered')" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Export</button>
-                    </div>
-                </form>
-                <div id="result-triggered" class="mt-8"></div>
-            </div>
-        </div>
+                </div>
 
-        <!-- Ultra Task Tab -->
-        <div id="ultra" class="tab-content hidden">
-             <div class="p-2 sm:p-6">
-                <form id="form-ultra">
-                    <div class="mb-6">
-                        <label for="api-requests-ultra" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">API Requests Volume</label>
-                        <input type="number" id="api-requests-ultra" value="100000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                        <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="api-requests-ultra" data-calculator="ultra">
-                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
-                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
-                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
-                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perDay')">Per Day</button>
-                             <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
-                             <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perYear')">Per Year</button>
+                <div style="text-align: center; margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 1rem; border: 2px solid #e2e8f0;">
+                    <button class="btn btn-primary" onclick="calculateTriggered()">Calculate Triggered Task Sizing</button>
+                    <div style="margin-top: 1rem;">
+                        <div class="toggle-container">
+                            <span class="toggle-label">Detailed View</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="detailed-view-toggle" onchange="toggleDetailedView()">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                </div>
+
+                <div class="results-container">
+                    <div id="result-triggered"></div>
+                </div>
+            </div>
+
+            <!-- Ultra Task Tab -->
+            <div id="ultra" class="tab-content hidden">
+
+                <div class="form-group">
+                    <label for="api-requests-ultra" class="form-label">API Requests Volume</label>
+                    <input type="number" id="api-requests-ultra" value="100000000" class="form-input">
+                    <div class="unit-selector" data-target="api-requests-ultra" data-calculator="ultra">
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                        <button type="button" class="unit-button" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                        <button type="button" class="unit-button active" onclick="updateUnit(this, 'perYear')">Per Year</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         <div>
-                            <label for="coverage-days-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Days per Month</label>
-                            <input type="number" id="coverage-days-ultra" value="20" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            <label for="coverage-days-ultra" class="form-label-small">Usage Days per Month</label>
+                            <input type="number" id="coverage-days-ultra" value="30" class="form-input">
                         </div>
                         <div>
-                            <label for="coverage-hours-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
-                            <input type="number" id="coverage-hours-ultra" value="12" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                        </div>
-                         <div>
-                            <label for="peak-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
-                            <input type="number" id="peak-ultra" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            <label for="coverage-hours-ultra" class="form-label-small">Usage Hours per Day</label>
+                            <input type="number" id="coverage-hours-ultra" value="24" class="form-input">
                         </div>
                         <div>
-                            <label for="complexity-ultra" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Complexity</label>
-                            <select id="complexity-ultra" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                                <option value="simple">Simple (0.3s)</option>
-                                <option value="moderate">Moderate (1.2s)</option>
-                                <option value="complex">Complex (5.5s)</option>
-                                <option value="veryComplex">Very Complex (12s)</option>
+                            <label for="peak-ultra" class="form-label-small">Peak Load (%)</label>
+                            <input type="number" id="peak-ultra" value="150" class="form-input">
+                        </div>
+                        <div>
+                            <label for="complexity-ultra" class="form-label-small">Complexity</label>
+                            <select id="complexity-ultra" class="form-select">
+                                <option value="simple" selected>Simple</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="complex">Complex</option>
+                                <option value="veryComplex">Very Complex</option>
                             </select>
                         </div>
                     </div>
-                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button type="button" onclick="calculateUltra()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
-                        <button type="button" onclick="exportData('ultra')" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Export</button>
+                </div>
+
+                <div style="text-align: center; margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 1rem; border: 2px solid #e2e8f0;">
+                    <button class="btn btn-primary" onclick="calculateUltra()">Calculate Ultra Task Sizing</button>
+                    <div style="margin-top: 1rem;">
+                        <div class="toggle-container">
+                            <span class="toggle-label">Detailed View</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="detailed-view-toggle-ultra" onchange="toggleDetailedView()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
-                </form>
-                <div id="result-ultra" class="mt-8"></div>
+                </div>
+
+                <div class="results-container">
+                    <div id="result-ultra"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- Scheduled Task Tab -->
-        <div id="scheduled" class="tab-content hidden">
-            <div class="p-2 sm:p-6">
-                <form id="form-scheduled">
-                    <div class="mb-6">
-                        <div class="flex items-center justify-between mb-2">
-                           <label id="batch-size-label" for="batch-size" class="block text-lg font-semibold text-gray-800 dark:text-slate-200">Batch Size (GB)</label>
-                           <div class="flex items-center space-x-3">
-                                <span class="text-sm font-medium text-gray-600 dark:text-slate-400">Toggle to Rows</span>
-                                <label class="toggle-switch-container">
-                                    <input type="checkbox" id="toggle-switch-scheduled" onchange="toggleBatchMode()">
-                                    <span class="slider"></span>
-                                </label>
-                           </div>
-                        </div>
-                        <input type="number" id="batch-size" value="300" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+            <!-- Scheduled Task Tab -->
+            <div id="scheduled" class="tab-content hidden">
+
+                <div class="form-group">
+                    <label id="batch-size-label" for="batch-size" class="form-label">Batch Size (GB)</label>
+                    <div class="toggle-container">
+                        <span class="toggle-label">Toggle to Rows</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-switch-scheduled" onchange="toggleBatchMode()">
+                            <span class="slider"></span>
+                        </label>
                     </div>
+                    <input type="number" id="batch-size" value="300" class="form-input">
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="form-group">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         <div>
-                            <label for="process-time" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Batch Window (Hours)</label>
-                            <input type="number" id="process-time" value="12" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                            <label for="process-time" class="form-label-small">Batch Window (Hours)</label>
+                            <input type="number" id="process-time" value="12" class="form-input">
                         </div>
                         <div>
-                            <label for="complexity-multiplier" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Transformation Complexity</label>
-                            <select id="complexity-multiplier" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                                <option value="1">Straight Pass-through</option>
-                                <option value="1.25">Few Sorts/Aggregations</option>
-                                <option value="1.5" selected>Moderate Sorts/Aggregations</option>
-                                <option value="2">Many Sorts/Aggregations</option>
+                            <label for="complexity-multiplier" class="form-label-small">Transformation Complexity</label>
+                            <select id="complexity-multiplier" class="form-select">
+                                <option value="1" selected>Simple (1x)</option>
+                                <option value="1.25">Moderate (1.25x)</option>
+                                <option value="1.5">Complex (1.5x)</option>
+                                <option value="2">Very Complex (2x)</option>
                             </select>
                         </div>
                     </div>
-                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button type="button" onclick="calculateScheduled()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
-                        <button type="button" onclick="exportData('scheduled')" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Export</button>
+                </div>
+
+                <div style="text-align: center; margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 1rem; border: 2px solid #e2e8f0;">
+                    <button class="btn btn-primary" onclick="calculateScheduled()">Calculate Scheduled Task Sizing</button>
+                    <div style="margin-top: 1rem;">
+                        <div class="toggle-container">
+                            <span class="toggle-label">Detailed View</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="detailed-view-toggle-scheduled" onchange="toggleDetailedView()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
-                </form>
-                <div id="result-scheduled" class="mt-8"></div>
+                </div>
+
+                <div class="results-container">
+                    <div id="result-scheduled"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- Headless Ultra Tab -->
-        <div id="headless" class="tab-content hidden">
-            <div class="p-2 sm:p-6">
-                <form id="form-headless">
-                     <div class="flex items-center justify-between mb-6 p-4 bg-gray-100 dark:bg-slate-900/50 rounded-lg">
-                           <label class="block text-lg font-semibold text-gray-800 dark:text-slate-200">Sizing Method</label>
-                           <div class="flex items-center space-x-3">
-                                <span class="text-sm font-medium text-gray-600 dark:text-slate-400 text-right">Data Volume <br class="hidden sm:inline">/ Event Freq.</span>
-                                <label class="toggle-switch-container">
-                                    <input type="checkbox" id="toggle-switch-headless" onchange="toggleHeadlessMode()" checked>
-                                    <span class="slider"></span>
-                                </label>
-                           </div>
-                        </div>
+            <!-- Headless Ultra Tab -->
+            <div id="headless" class="tab-content hidden">
 
-                    <!-- Microbatching ON -->
-                    <div id="headless-microbatching-on">
-                        <div class="mb-6">
-                            <label for="events-headless" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">Event Volume</label>
-                            <input type="number" id="events-headless" value="20000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                             <div class="unit-selector mt-3 flex flex-wrap gap-2" data-target="events-headless" data-calculator="headless">
-                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perSecond')">Per Second</button>
-                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
-                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perHour')">Per Hour</button>
-                                <button type="button" class="active px-4 py-2 text-sm border rounded-md transition" onclick="updateUnit(this, 'perDay')">Per Day</button>
-                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perMonth')">Per Month</button>
-                                <button type="button" class="px-4 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md transition hover:bg-gray-100 dark:hover:bg-slate-700" onclick="updateUnit(this, 'perYear')">Per Year</button>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            <div>
-                                <label for="coverage-hours-headless-on" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
-                                <input type="number" id="coverage-hours-headless-on" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                            </div>
-                            <div>
-                                <label for="peak-headless-on" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
-                                <input type="number" id="peak-headless-on" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                            </div>
+                <div class="special-section">
+                    <label class="form-label">Sizing Method</label>
+                    <div class="toggle-container">
+                        <span class="toggle-label">Data Volume / Event Freq.</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-switch-headless" onchange="toggleHeadlessMode()" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Event Frequency Mode -->
+                <div id="headless-microbatching-on">
+                    <div class="form-group">
+                        <label for="events-headless" class="form-label">Event Volume</label>
+                        <input type="number" id="events-headless" value="20000000" class="form-input">
+                        <div class="unit-selector" data-target="events-headless" data-calculator="headless">
+                            <button type="button" class="unit-button" onclick="updateUnit(this, 'perSecond')">Per Second</button>
+                            <button type="button" class="unit-button" onclick="updateUnit(this, 'perMinute')">Per Minute</button>
+                            <button type="button" class="unit-button" onclick="updateUnit(this, 'perHour')">Per Hour</button>
+                            <button type="button" class="unit-button active" onclick="updateUnit(this, 'perDay')">Per Day</button>
+                            <button type="button" class="unit-button" onclick="updateUnit(this, 'perMonth')">Per Month</button>
+                            <button type="button" class="unit-button" onclick="updateUnit(this, 'perYear')">Per Year</button>
                         </div>
                     </div>
 
-                    <!-- Microbatching OFF -->
-                     <div id="headless-microbatching-off" class="hidden">
-                        <div class="mb-6">
-                            <label for="events-headless-off" class="block text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2">Event Volume (Per Day)</label>
-                            <input type="number" id="events-headless-off" value="20000000" class="w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                             <div>
-                                <label for="event-size-headless" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Avg. Message Size (Bytes)</label>
-                                <input type="number" id="event-size-headless" value="2000" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                    <div class="form-group">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div>
+                                <label for="coverage-hours-headless-on" class="form-label-small">Usage Hours per Day</label>
+                                <input type="number" id="coverage-hours-headless-on" value="24" class="form-input">
                             </div>
                             <div>
-                                <label for="coverage-hours-headless-off" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Usage Hours per Day</label>
-                                <input type="number" id="coverage-hours-headless-off" value="24" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                            </div>
-                            <div>
-                                <label for="peak-headless-off" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Peak Load (%)</label>
-                                <input type="number" id="peak-headless-off" value="150" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
-                            </div>
-                             <div>
-                                <label for="complexity-headless" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Complexity Multiplier</label>
-                                <input type="number" id="complexity-headless" value="1" step="0.1" class="mt-1 w-full p-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 dark:placeholder-slate-400 text-gray-900 dark:text-white rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition">
+                                <label for="peak-headless-on" class="form-label-small">Peak Load (%)</label>
+                                <input type="number" id="peak-headless-on" value="150" class="form-input">
                             </div>
                         </div>
                     </div>
-                    
-                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button type="button" onclick="calculateHeadlessUltra()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Calculate</button>
-                        <button type="button" onclick="exportData('headless')" class="w-full bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-300 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Export</button>
+                </div>
+
+                <!-- Data Volume Mode -->
+                <div id="headless-microbatching-off" class="hidden">
+                    <div class="form-group">
+                        <label for="events-headless-off" class="form-label">Event Volume (Per Day)</label>
+                        <input type="number" id="events-headless-off" value="20000000" class="form-input">
                     </div>
-                </form>
-                <div id="result-headless" class="mt-8"></div>
+
+                    <div class="form-group">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div>
+                                <label for="event-size-headless" class="form-label-small">Avg. Message Size (Bytes)</label>
+                                <input type="number" id="event-size-headless" value="2000" class="form-input">
+                            </div>
+                            <div>
+                                <label for="coverage-hours-headless-off" class="form-label-small">Usage Hours per Day</label>
+                                <input type="number" id="coverage-hours-headless-off" value="24" class="form-input">
+                            </div>
+                            <div>
+                                <label for="peak-headless-off" class="form-label-small">Peak Load (%)</label>
+                                <input type="number" id="peak-headless-off" value="150" class="form-input">
+                            </div>
+                            <div>
+                                <label for="complexity-headless" class="form-label-small">Complexity Multiplier</label>
+                                <input type="number" id="complexity-headless" value="1" step="0.1" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 1rem; border: 2px solid #e2e8f0;">
+                    <button class="btn btn-primary" onclick="calculateHeadlessUltra()">Calculate Headless Task Sizing</button>
+                    <div style="margin-top: 1rem;">
+                        <div class="toggle-container">
+                            <span class="toggle-label">Detailed View</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="detailed-view-toggle-headless" onchange="toggleDetailedView()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="results-container">
+                    <div id="result-headless"></div>
+                </div>
             </div>
-        </div>
+
+            <!-- Throughput Prediction Tab -->
+            <div id="prediction" class="tab-content hidden">
+
+                <div class="form-group">
+                    <label for="prediction-task-type" class="form-label">Workload Type</label>
+                    <select id="prediction-task-type" onchange="updatePredictionForm()" class="form-select">
+                        <option value="triggered">Triggered Task</option>
+                        <option value="ultra">Ultra Task</option>
+                        <option value="scheduled">Scheduled Task</option>
+                        <option value="headless">Headless Ultra</option>
+                    </select>
+                </div>
+
+                <div id="prediction-headless-mode-container" class="form-group hidden">
+                    <label for="prediction-headless-mode" class="form-label">Headless Sizing Method</label>
+                    <select id="prediction-headless-mode" class="form-select">
+                        <option value="eventFrequency">Event Frequency</option>
+                        <option value="dataVolume">Data Volume</option>
+                    </select>
+                </div>
+
+                <div id="prediction-standard-inputs">
+                    <div class="form-group">
+                        <label for="prediction-node-count" class="form-label">Number of Nodes</label>
+                        <input type="number" id="prediction-node-count" value="3" class="form-input">
+                    </div>
+                </div>
+
+                <div id="prediction-ultra-inputs" class="form-group hidden">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div>
+                            <label for="prediction-exec-nodes" class="form-label">Execution Nodes</label>
+                            <input type="number" id="prediction-exec-nodes" value="3" class="form-input">
+                        </div>
+                        <div>
+                            <label for="prediction-fm-nodes" class="form-label">FeedMaster Nodes</label>
+                            <input type="number" id="prediction-fm-nodes" value="3" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: center; align-items: center; gap: 2rem; margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 1rem; border: 2px solid #e2e8f0;">
+                    <button class="btn btn-primary" onclick="calculatePrediction()">Calculate Throughput Prediction</button>
+                </div>
+
+                <div class="results-container">
+                    <div id="result-prediction"></div>
+                </div>
+            </div>
+
+            <!-- Considerations Tab - Hidden for now
+            <div id="considerations" class="tab-content hidden">
+                <div class="considerations-section">
+                    <h2 class="considerations-title">Key Sizing Considerations</h2>
+                    <p class="section-text">To provide an accurate infrastructure sizing estimate, it's essential to understand the nature of your integration workloads. Use these questions as a guide to gather the necessary details before using the calculator.</p>
+
+                    <div class="export-section">
+                        <h3 class="export-title">Export Sizing Data</h3>
+                        <p class="section-text">Export your sizing calculations as structured JSON data for documentation, reporting, or integration with other tools.</p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+                            <button class="btn btn-secondary" onclick="exportData('triggered')">Export Triggered Data</button>
+                            <button class="btn btn-secondary" onclick="exportData('ultra')">Export Ultra Data</button>
+                            <button class="btn btn-secondary" onclick="exportData('scheduled')">Export Scheduled Data</button>
+                            <button class="btn btn-secondary" onclick="exportData('headless')">Export Headless Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            -->
         </div>
     </div>
-    
+
     <!-- Export Modal -->
-    <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl transform transition-all">
-            <div class="p-6">
-                <div class="flex items-start justify-between">
-                    <h3 class="text-2xl font-semibold text-gray-900 dark:text-slate-100">Export Sizing Data</h3>
-                    <button type="button" onclick="closeExportModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                    </button>
-                </div>
-                <div class="mt-4">
-                    <pre id="export-json" class="bg-slate-100 dark:bg-slate-900 text-sm p-4 rounded-md text-left text-slate-800 dark:text-slate-300"></pre>
-                </div>
+    <div id="export-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Export Data</h3>
+                <button type="button" onclick="closeExportModal()" class="close-button">×</button>
             </div>
-            <div class="flex items-center justify-end p-6 space-x-2 border-t border-gray-200 dark:border-slate-600 rounded-b">
-                <button id="copy-button" type="button" onclick="copyJsonToClipboard()" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform transition-all duration-300 text-base focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Copy to Clipboard</button>
+            <div>
+                <pre id="export-json" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; font-size: 0.75rem; max-height: 400px; overflow-y: auto;"></pre>
+                <button id="copy-button" type="button" onclick="copyJsonToClipboard()" class="btn btn-primary" style="margin-top: 1rem;">Copy to Clipboard</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- Central Configuration Object ---
-        const configurationOptions = {
-            ha: {
-                bufferMultiplier: 1.3,
-                minNodes: 2,
-            },
-            triggered: {
-                requestsPerNodePerSecond: 20,
-                complexityResponseTimes: {
-                    simple: 1,
-                    moderate: 2.5,
-                    complex: 7,
-                    veryComplex: 15
-                }
-            },
-            ultra: {
-                exec: {
-                    requestsPerNodePerSecond: 100,
-                },
-                fm: {
-                    requestsPerNodePerSecond: 200,
-                },
-                complexityResponseTimes: {
-                    simple: 0.3,
-                    moderate: 1.2,
-                    complex: 5.5,
-                    veryComplex: 12
-                }
-            },
-            scheduled: {
-                mbPerMinutePerNode: 300,
-                rowsToGbDivisor: 5000000,
-            },
-            headless: {
-                mbPerMinutePerNode: 150,
-                bytesToGbEqDivisor: 10000000000,
-                requestsPerNodePerSecond: 100,
-                assumedResponseTime: 0.3,
-            }
-        };
-
-        const EXPORT_EXPLANATIONS = {
-            purpose: "This document provides a SnapLogic infrastructure sizing estimation. Its goal is to translate business transaction volumes into a recommended number of SnapLogic execution nodes required to process the workload reliably and efficiently.",
-            benefitToCustomer: "Proper infrastructure sizing is crucial for ensuring performance, reliability, and cost-effectiveness. By using this data-driven approach, the customer can avoid under-provisioning, which leads to performance bottlenecks and failed processes, and over-provisioning, which results in unnecessary costs. This estimation provides a solid foundation for architectural planning, ensuring the platform can meet Service Level Agreements (SLAs) from day one and scale effectively as business needs grow.",
-            methodology: "The calculation methodology is based on established SnapLogic performance benchmarks. It starts by converting the customer's stated business volume (e.g., 'API calls per year') into a peak transactions-per-second rate, factoring in the customer's specific operational window (days per month, hours per day) and expected peak load variance. This peak transaction rate is then divided by the benchmarked processing capacity of a single SnapLogic node for the given workload type (e.g., Triggered, Ultra, Scheduled). The result is the raw number of nodes required, which is then used to recommend both a non-redundant (Non-HA) and a fault-tolerant (High Availability/HA) configuration.",
-            keyConcepts: {
-                "Node": "A Node is the fundamental unit of computation in SnapLogic. It is a Java Virtual Machine (JVM) process that executes integration pipelines. A collection of nodes forms a Snaplex (execution cluster).",
-                "High Availability (HA)": "An HA configuration includes redundant nodes (typically a 30% buffer and a minimum of 2-3 nodes) to ensure the system remains operational even if one node fails. This is critical for production and business-critical workloads.",
-                "Peak Load": "The maximum expected workload, calculated as a percentage increase over the average load. Sizing for peak load ensures the system can handle bursts of activity without performance degradation.",
-                "Effective Throughput": "The actual number of transactions a node can process per second. This is influenced by the average response time of the tasks; faster tasks allow a single node to process more transactions per second."
-            },
-            glossary: {
-                triggered: {
-                    inputs: {
-                        apiRequests: "The total number of API requests the customer expects to process over the specified time unit.",
-                        coverageDays: "The number of days per month the workload is active (e.g., 22 for business days, 30 for 24/7 operations).",
-                        coverageHours: "The number of hours per day the workload is active.",
-                        peakLoadPercentage: "The percentage increase over the average load during peak times (e.g., 150% means the peak is 1.5x the average).",
-                        complexity: "The selected complexity level which determines the assumed average response time for a single task."
-                    },
-                    outputs: {
-                        assumedResponseTime: "The average response time in seconds based on the selected complexity.",
-                        avgRequestsPerSecond: "The calculated average number of requests per second during the active window.",
-                        peakRequestsPerSecond: "The calculated peak number of requests per second.",
-                        effectiveThroughputPerNode: "The number of requests a single standard Triggered node can handle per second, based on the assumed response time.",
-                        rawNodesRequired: "The theoretical (fractional) number of nodes required to handle the peak load.",
-                        nodesRequiredNonHA: "The number of nodes required (rounded up) without a high-availability buffer.",
-                        nodesRequiredHA: "The recommended number of nodes including a buffer for high availability and a minimum node count.",
-                        maxCapacityHA: "The maximum requests per second the HA node configuration can handle.",
-                        headroomVsPeak: "The percentage of extra capacity the HA configuration provides over the peak load.",
-                        headroomVsAverage: "The percentage of extra capacity the HA configuration provides over the average load."
-                    }
-                },
-                ultra: {
-                    inputs: {
-                        apiRequests: "The total number of API requests the customer expects to process over the specified time unit for low-latency Ultra pipelines.",
-                        coverageDays: "The number of days per month the workload is active.",
-                        coverageHours: "The number of hours per day the workload is active.",
-                        peakLoadPercentage: "The percentage increase over the average load during peak times.",
-                        complexity: "The selected complexity level which determines the assumed average response time for a single task."
-                    },
-                    outputs: {
-                        assumedResponseTime: "The average response time in seconds based on the selected complexity.",
-                        avgRequestsPerSecond: "The calculated average number of requests per second during the active window.",
-                        peakRequestsPerSecond: "The calculated peak number of requests per second.",
-                        effectiveThroughputPerExecNode: "The number of requests a single Ultra Execution node can handle per second, based on the assumed response time.",
-                        effectiveThroughputPerFMNode: "The number of requests a single Ultra FeedMaster node can handle per second, based on the assumed response time.",
-                        execNodesNonHA: "The calculated number of Execution nodes required (non-HA).",
-                        execNodesHA: "The recommended number of Execution nodes for high availability.",
-                        fmNodesNonHA: "The calculated number of FeedMaster nodes required (non-HA).",
-                        fmNodesHA: "The recommended number of FeedMaster nodes for high availability.",
-                        maxCapacityHA: "The maximum requests per second the HA Execution node configuration can handle.",
-                        headroomVsPeak: "The percentage of extra capacity the HA configuration provides over the peak load.",
-                        headroomVsAverage: "The percentage of extra capacity the HA configuration provides over the average load."
-                    }
-                },
-                scheduled: {
-                    inputs: {
-                        batchSize: "The total data volume (in GB or millions of rows) to be processed in a single batch.",
-                        processWindowHours: "The available time in hours to complete the batch processing.",
-                        complexityMultiplier: "A factor representing the transformation complexity of the pipeline (e.g., simple pass-through vs. complex aggregations)."
-                    },
-                    outputs: {
-                        requiredThroughput: "The calculated data processing speed (in MB/minute) required to meet the batch window.",
-                        rawNodesRequired: "The theoretical (fractional) number of nodes required.",
-                        nodesRequiredNonHA: "The number of nodes required (rounded up) without a high-availability buffer.",
-                        nodesRequiredHA: "The recommended number of nodes including a buffer for high availability.",
-                        maxCapacityHA: "The maximum throughput the HA node configuration can handle.",
-                        headroom: "The percentage of extra capacity the HA configuration provides."
-                    }
-                },
-                headless: {
-                   eventFrequency: {
-                        inputs: {
-                            eventVolume: "Total number of events within the specified time unit for headless pipelines.",
-                            coverageHours: "The number of hours per day the workload is active.",
-                            peakLoadPercentage: "The percentage increase over the average load during peak times."
-                        },
-                        outputs: {
-                           avgEventsPerSecond: "The calculated average number of events per second.",
-                           peakEventsPerSecond: "The calculated peak number of events per second.",
-                           effectiveThroughputPerNode: "The number of events a single headless node can handle per second.",
-                           execNodesNonHA: "Calculated number of Execution nodes required (non-HA).",
-                           execNodesHA: "Recommended number of Execution nodes for high availability.",
-                           maxCapacityHA: "The maximum events per second the HA node configuration can handle.",
-                           headroomVsPeak: "Extra capacity over peak load.",
-                           headroomVsAverage: "Extra capacity over average load."
-                        }
-                   },
-                   dataVolume: {
-                        inputs: {
-                           eventVolumePerDay: "Total number of events per day.",
-                           avgMessageSizeBytes: "The average size of a single event message in bytes.",
-                           coverageHours: "The number of hours per day the workload is active.",
-                           peakLoadPercentage: "The percentage increase over the average load during peak times.",
-                           complexityMultiplier: "A factor representing the transformation complexity."
-                        },
-                        outputs: {
-                           avgThroughput: "The calculated average data throughput in MB/minute.",
-                           peakThroughput: "The calculated peak data throughput in MB/minute.",
-                           execNodesNonHA: "Calculated number of Execution nodes required (non-HA).",
-                           execNodesHA: "Recommended number of Execution nodes for high availability.",
-                           maxCapacityHA: "The maximum throughput the HA node configuration can handle.",
-                           headroomVsPeak: "Extra capacity over peak load.",
-                           headroomVsAverage: "Extra capacity over average load."
-                        }
-                   }
-                }
-            }
-        };
-
-        // --- Theme Toggle ---
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-
-        // Set initial icon
-        if (document.documentElement.classList.contains('dark')) {
-            themeToggleLightIcon.classList.remove('hidden');
-        } else {
-            themeToggleDarkIcon.classList.remove('hidden');
-        }
-
-        themeToggleBtn.addEventListener('click', function() {
-            themeToggleDarkIcon.classList.toggle('hidden');
-            themeToggleLightIcon.classList.toggle('hidden');
-
-            const isDark = localStorage.getItem('color-theme') === 'dark' || 
-                           (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-            if (isDark) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('color-theme', 'light');
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('color-theme', 'dark');
-            }
-        });
-
-
-        // --- Core UI Functions ---
-        let activeTab = 'triggered';
-        function openTab(event, tabName) {
-            activeTab = tabName;
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(tabName).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
-        }
-
-        function toggleDetailedView() {
-            const isChecked = document.getElementById('detailed-view-toggle').checked;
-            if (isChecked) {
-                document.body.classList.add('detailed-view-active');
-            } else {
-                document.body.classList.remove('detailed-view-active');
-            }
-        }
-
-
-        // --- Unit Conversion Logic ---
-        let currentUnits = {
-            triggered: 'perYear',
-            ultra: 'perYear',
-            headless: 'perDay'
-        };
-
-        function updateUnit(button, newUnit) {
-            const selector = button.closest('.unit-selector');
-            const calculatorType = selector.dataset.calculator;
-
-            selector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            currentUnits[calculatorType] = newUnit;
-        }
-        
-        function getAverageRequestsPerSecond(value, unit, coverageDays, coverageHours) {
-            if (isNaN(value) || value === 0 || isNaN(coverageDays) || coverageDays === 0 || isNaN(coverageHours) || coverageHours === 0) return 0;
-            
-            switch (unit) {
-                case 'perSecond': return value;
-                case 'perMinute': return value / 60;
-                case 'perHour':   return value / 3600;
-                case 'perDay':    return value / (coverageHours * 3600);
-                case 'perMonth':  return value / (coverageDays * coverageHours * 3600);
-                case 'perYear':   return value / (12 * coverageDays * coverageHours * 3600);
-                default: return 0;
-            }
-        }
-        
-        // --- Scheduled/Headless Task UI Toggles ---
-        function toggleBatchMode() {
-            const isChecked = document.getElementById('toggle-switch-scheduled').checked;
-            const label = document.getElementById('batch-size-label');
-            const input = document.getElementById('batch-size');
-            if (isChecked) { // Switched to Rows
-                label.textContent = 'Batch Volume (Rows)';
-                input.value = 1500000000;
-            } else { // Switched to GB
-                label.textContent = 'Batch Size (GB)';
-                input.value = 300;
-            }
-        }
-        
-        function toggleHeadlessMode() {
-            const isChecked = document.getElementById('toggle-switch-headless').checked;
-            const onDiv = document.getElementById('headless-microbatching-on');
-            const offDiv = document.getElementById('headless-microbatching-off');
-
-            if (isChecked) { // Microbatching ON (Event Frequency)
-                onDiv.classList.remove('hidden');
-                offDiv.classList.add('hidden');
-            } else { // Microbatching OFF (Data Volume)
-                onDiv.classList.add('hidden');
-                offDiv.classList.remove('hidden');
-            }
-        }
-        
-        function generateResultCard(title, results, details, detailsExtra = null) {
-            let detailsHtml = '<div class="grid sm:grid-cols-2 gap-4">';
-            details.forEach(detail => {
-                detailsHtml += `
-                    <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg text-center sm:text-left">
-                        <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detail.label}</p>
-                        <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${detail.value}</p>
-                    </div>
-                `;
-            });
-            detailsHtml += '</div>';
-
-            let extraDetailsHtml = '';
-            if (detailsExtra) {
-                let headroomAvgHtml = '';
-                if (detailsExtra.avg) {
-                     headroomAvgHtml = `
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.avg.label}</p>
-                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${detailsExtra.avg.value}%</p>
-                        </div>
-                    `;
-                }
-
-                extraDetailsHtml = `
-                    <div class="detailed-view-content mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                        <h4 class="text-lg font-semibold text-gray-700 dark:text-slate-300 mb-2">Maximum Capacity of Calculated HA Nodes</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                                <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.raw.label}</p>
-                                <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${detailsExtra.raw.value}</p>
-                            </div>
-                            <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                                <p class="text-sm font-medium text-gray-600 dark:text-slate-400">${detailsExtra.peak.label}</p>
-                                <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${detailsExtra.peak.value}%</p>
-                            </div>
-                            ${headroomAvgHtml}
-                        </div>
-                    </div>
-                `;
-            }
-
-            let resultsHtml = `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">`;
-            results.forEach(result => {
-                resultsHtml += `
-                    <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
-                        <p class="text-lg font-medium text-slate-800 dark:text-slate-300">${result.label}</p>
-                        <p class="text-6xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${result.value}</p>
-                    </div>
-                `;
-            });
-            resultsHtml += `</div>`;
-
-
-            return `
-                <div class="result-card-container">
-                    <h3 class="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-4">${title}</h3>
-                    ${detailsHtml}
-                    ${extraDetailsHtml}
-                    ${resultsHtml}
-                </div>
-            `;
-        }
-
-
-        // --- Calculation Functions ---
-        function getTriggeredCalculationResults(){
-            const config = configurationOptions;
-            const requests = parseFloat(document.getElementById('api-requests-triggered').value) || 0;
-            const unit = currentUnits.triggered;
-            const coverageDays = parseFloat(document.getElementById('coverage-days-triggered').value) || 30;
-            const coverageHours = parseFloat(document.getElementById('coverage-hours-triggered').value) || 24;
-            const peak = parseFloat(document.getElementById('peak-triggered').value) || 100;
-            const complexity = document.getElementById('complexity-triggered').value;
-            const assumedResponseTime = config.triggered.complexityResponseTimes[complexity];
-
-            const avgRequestsPerSecond = getAverageRequestsPerSecond(requests, unit, coverageDays, coverageHours);
-            const concurrentAPI = avgRequestsPerSecond * (peak / 100);
-
-            const effectiveNodeThroughput = assumedResponseTime > 0 ? (config.triggered.requestsPerNodePerSecond / assumedResponseTime) : 0;
-            const nodesRequired = effectiveNodeThroughput > 0 ? concurrentAPI / effectiveNodeThroughput : Infinity;
-            
-            const nonHaNodesRequired = Math.ceil(nodesRequired);
-            const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
-            
-            const maxCapacity = haNodesRequired * effectiveNodeThroughput;
-            const capacityHeadroomPeak = concurrentAPI > 0 ? ((maxCapacity / concurrentAPI) - 1) * 100 : 0;
-            const capacityHeadroomAvg = avgRequestsPerSecond > 0 ? ((maxCapacity / avgRequestsPerSecond) - 1) * 100 : 0;
-
-            return {
-                inputs: {
-                    requests, unit, coverageDays, coverageHours, peak, complexity, assumedResponseTime
-                },
-                outputs: {
-                    avgRequestsPerSecond, concurrentAPI, effectiveNodeThroughput, nodesRequired, 
-                    nonHaNodesRequired, haNodesRequired, maxCapacity, capacityHeadroomPeak, capacityHeadroomAvg
-                }
-            };
-        }
-
-        function calculateTriggered() {
-            const { outputs } = getTriggeredCalculationResults();
-
-            const details = [
-                { label: 'Avg. Concurrent API Requests', value: `${outputs.avgRequestsPerSecond.toFixed(2)} / sec`},
-                { label: 'Peak Concurrent API Requests', value: `${outputs.concurrentAPI.toFixed(2)} / sec`},
-                { label: 'Effective Throughput / Node', value: `${outputs.effectiveNodeThroughput.toFixed(2)} / sec`},
-                { label: 'Raw Nodes Required', value: outputs.nodesRequired.toFixed(2) }
-            ];
-            
-            const results = [
-                 { label: 'Nodes Required (Non-HA)', value: outputs.nonHaNodesRequired },
-                 { label: 'Nodes Required (HA)', value: outputs.haNodesRequired }
-            ];
-
-            const detailsExtra = {
-                raw: { label: 'Max Concurrent Requests', value: `${outputs.maxCapacity.toFixed(2)} / sec` },
-                peak: { label: 'Headroom vs. Peak', value: outputs.capacityHeadroomPeak.toFixed(1) },
-                avg: { label: 'Headroom vs. Average', value: outputs.capacityHeadroomAvg.toFixed(1) }
-            };
-
-            document.getElementById('result-triggered').innerHTML = generateResultCard(
-                'Triggered Task Sizing',
-                results,
-                details,
-                detailsExtra
-            );
-        }
-        
-        function getUltraCalculationResults() {
-            const config = configurationOptions;
-            const requests = parseFloat(document.getElementById('api-requests-ultra').value) || 0;
-            const unit = currentUnits.ultra;
-            const coverageDays = parseFloat(document.getElementById('coverage-days-ultra').value) || 20;
-            const coverageHours = parseFloat(document.getElementById('coverage-hours-ultra').value) || 12;
-            const peak = parseFloat(document.getElementById('peak-ultra').value) || 100;
-            const complexity = document.getElementById('complexity-ultra').value;
-            const assumedResponseTime = config.ultra.complexityResponseTimes[complexity];
-
-            const avgRequestsPerSecond = getAverageRequestsPerSecond(requests, unit, coverageDays, coverageHours);
-            const concurrentAPI = avgRequestsPerSecond * (peak / 100);
-            
-            const effectiveExecNodeThroughput = assumedResponseTime > 0 ? (config.ultra.exec.requestsPerNodePerSecond / assumedResponseTime) : 0;
-            const execNodes = effectiveExecNodeThroughput > 0 ? concurrentAPI / effectiveExecNodeThroughput : Infinity;
-            const nonHaExecNodes = Math.ceil(execNodes);
-            const haExecNodes = Math.ceil(Math.max(execNodes * config.ha.bufferMultiplier, config.ha.minNodes));
-
-            const effectiveFmNodeThroughput = assumedResponseTime > 0 ? (config.ultra.fm.requestsPerNodePerSecond / assumedResponseTime) : 0;
-            const fmNodes = effectiveFmNodeThroughput > 0 ? concurrentAPI / effectiveFmNodeThroughput : Infinity;
-            const nonHaFmNodes = Math.ceil(fmNodes);
-            const haFmNodes = Math.ceil(Math.max(fmNodes * config.ha.bufferMultiplier, config.ha.minNodes));
-
-            const maxCapacity = haExecNodes * effectiveExecNodeThroughput;
-            const capacityHeadroomPeak = concurrentAPI > 0 ? ((maxCapacity / concurrentAPI) - 1) * 100 : 0;
-            const capacityHeadroomAvg = avgRequestsPerSecond > 0 ? ((maxCapacity / avgRequestsPerSecond) - 1) * 100 : 0;
-
-            return {
-                inputs: { requests, unit, coverageDays, coverageHours, peak, complexity, assumedResponseTime },
-                outputs: {
-                    avgRequestsPerSecond, concurrentAPI, effectiveExecNodeThroughput, execNodes, nonHaExecNodes, haExecNodes,
-                    effectiveFmNodeThroughput, fmNodes, nonHaFmNodes, haFmNodes, maxCapacity, capacityHeadroomPeak, capacityHeadroomAvg
-                }
-            };
-        }
-
-        function calculateUltra() {
-            const { outputs } = getUltraCalculationResults();
-
-            const detailedViewHtml = `
-                <div class="detailed-view-content mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                    <h4 class="text-lg font-semibold text-gray-700 dark:text-slate-300 mb-2">Maximum Capacity of Calculated HA Nodes</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Max Concurrent Requests</p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${outputs.maxCapacity.toFixed(2)} / sec</p>
-                        </div>
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Headroom vs. Peak</p>
-                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${outputs.capacityHeadroomPeak.toFixed(1)}%</p>
-                        </div>
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Headroom vs. Average</p>
-                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">+${outputs.capacityHeadroomAvg.toFixed(1)}%</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            const resultHTML = `
-                <div class="result-card-container">
-                    <h3 class="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-4">Ultra Task Sizing</h3>
-                    <div class="grid sm:grid-cols-2 gap-4 mb-4">
-                         <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Avg. Concurrent Requests</p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${outputs.avgRequestsPerSecond.toFixed(2)} / sec</p>
-                        </div>
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Peak Concurrent Requests</p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${outputs.concurrentAPI.toFixed(2)} / sec</p>
-                        </div>
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Eff. Throughput / Exec Node</p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${outputs.effectiveExecNodeThroughput.toFixed(2)} / sec</p>
-                        </div>
-                        <div class="p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                            <p class="text-sm font-medium text-gray-600 dark:text-slate-400">Eff. Throughput / FM Node</p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-slate-200">${outputs.effectiveFmNodeThroughput.toFixed(2)} / sec</p>
-                        </div>
-                    </div>
-                    ${detailedViewHtml}
-                    <div class="grid grid-cols-2 gap-4 mt-4">
-                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">Exec Nodes (Non-HA)</p>
-                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${outputs.nonHaExecNodes}</p>
-                        </div>
-                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">Exec Nodes (HA)</p>
-                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${outputs.haExecNodes}</p>
-                        </div>
-                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">FeedMaster (Non-HA)</p>
-                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${outputs.nonHaFmNodes}</p>
-                        </div>
-                        <div class="p-5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-center">
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-300">FeedMaster (HA)</p>
-                            <p class="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">${outputs.haFmNodes}</p>
-                        </div>
-                    </div>
-                </div>`;
-            
-            document.getElementById('result-ultra').innerHTML = resultHTML;
-        }
-        
-        function getScheduledCalculationResults() {
-             const config = configurationOptions;
-            const batchSizeInput = parseFloat(document.getElementById('batch-size').value) || 0;
-            const processTime = parseFloat(document.getElementById('process-time').value) || 12;
-            const complexityMultiplier = parseFloat(document.getElementById('complexity-multiplier').value) || 1.5;
-            const isRows = document.getElementById('toggle-switch-scheduled').checked;
-
-            let batchSizeGb = batchSizeInput;
-            if (isRows) {
-                batchSizeGb = batchSizeInput / config.scheduled.rowsToGbDivisor;
-            }
-
-            const mbPerMinute = processTime > 0 ? (batchSizeGb * 1024) / (processTime * 60) : 0;
-            const nodesRequired = mbPerMinute > 0 ? (mbPerMinute * complexityMultiplier) / config.scheduled.mbPerMinutePerNode : 0;
-            const nonHaNodesRequired = Math.ceil(nodesRequired);
-            const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
-            
-            const maxCapacity = (haNodesRequired * config.scheduled.mbPerMinutePerNode) / complexityMultiplier;
-            const capacityHeadroom = mbPerMinute > 0 ? ((maxCapacity / mbPerMinute) - 1) * 100 : 0;
-
-            return {
-                inputs: { batchSizeInput, unit: isRows ? 'Rows' : 'GB', processTime, complexityMultiplier },
-                outputs: {
-                    mbPerMinute, nodesRequired, nonHaNodesRequired, haNodesRequired, maxCapacity, capacityHeadroom
-                }
-            };
-        }
-        
-        function calculateScheduled() {
-            const { outputs } = getScheduledCalculationResults();
-
-            const details = [
-                { label: 'Required Throughput', value: `${outputs.mbPerMinute.toFixed(2)} MB/min` },
-                { label: 'Raw Nodes Required', value: outputs.nodesRequired.toFixed(2) }
-            ];
-            
-             const results = [
-                 { label: 'Nodes Required (Non-HA)', value: outputs.nonHaNodesRequired },
-                 { label: 'Nodes Required (HA)', value: outputs.haNodesRequired }
-            ];
-
-            const detailsExtra = {
-                raw: { label: 'Max Throughput', value: `${outputs.maxCapacity.toFixed(2)} MB/min` },
-                peak: { label: 'Capacity Headroom', value: outputs.capacityHeadroom.toFixed(1) },
-                avg: null
-            };
-
-            document.getElementById('result-scheduled').innerHTML = generateResultCard(
-                'Scheduled Task Sizing',
-                results,
-                details,
-                detailsExtra
-            );
-        }
-
-        function getHeadlessCalculationResults() {
-            const config = configurationOptions;
-            const isMicrobatching = document.getElementById('toggle-switch-headless').checked;
-            
-            let inputs = {};
-            let outputs = {};
-
-            if (isMicrobatching) {
-                const events = parseFloat(document.getElementById('events-headless').value) || 0;
-                const unit = currentUnits.headless;
-                const coverageDaysForUnit = (unit === 'perMonth') ? 30.42 : (unit === 'perYear' ? 365 : 1);
-                const coverageHours = parseFloat(document.getElementById('coverage-hours-headless-on').value) || 24;
-                const peak = parseFloat(document.getElementById('peak-headless-on').value) || 100;
-                
-                inputs = { sizingMethod: 'Event Frequency', events, unit, coverageHours, peak };
-
-                const avgEventsPerSecond = getAverageRequestsPerSecond(events, unit, coverageDaysForUnit, coverageHours);
-                const concurrentEvents = avgEventsPerSecond * (peak / 100);
-                const assumedResponseTime = config.headless.assumedResponseTime;
-                const effectiveNodeThroughput = assumedResponseTime > 0 ? (config.headless.requestsPerNodePerSecond / assumedResponseTime) : 0;
-
-                const nodesRequired = effectiveNodeThroughput > 0 ? concurrentEvents / effectiveNodeThroughput : Infinity;
-                const nonHaNodesRequired = Math.ceil(nodesRequired);
-                const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
-                
-                const maxCapacity = haNodesRequired * effectiveNodeThroughput;
-                const capacityHeadroomPeak = concurrentEvents > 0 ? ((maxCapacity / concurrentEvents) - 1) * 100 : 0;
-                const capacityHeadroomAvg = avgEventsPerSecond > 0 ? ((maxCapacity / avgEventsPerSecond) - 1) * 100 : 0;
-
-                outputs = { 
-                    avgEventsPerSecond, concurrentEvents, effectiveNodeThroughput, nodesRequired, nonHaNodesRequired, haNodesRequired,
-                    maxCapacity, capacityHeadroomPeak, capacityHeadroomAvg
-                };
-
-            } else { // Data Volume Method
-                const eventsPerDay = parseFloat(document.getElementById('events-headless-off').value) || 0;
-                const messageSize = parseFloat(document.getElementById('event-size-headless').value) || 2000;
-                const coverageHours = parseFloat(document.getElementById('coverage-hours-headless-off').value) || 24;
-                const peak = parseFloat(document.getElementById('peak-headless-off').value) || 100;
-                const complexity = parseFloat(document.getElementById('complexity-headless').value) || 1;
-
-                inputs = { sizingMethod: 'Data Volume', eventsPerDay, messageSize, coverageHours, peak, complexity };
-
-                const batchSizeGbEq = (messageSize * eventsPerDay) / config.headless.bytesToGbEqDivisor;
-                const avgMbPerMinute = coverageHours > 0 ? (batchSizeGbEq * 1024) / (coverageHours * 60) : 0;
-                const peakMbPerMinute = avgMbPerMinute * (peak / 100);
-
-                const nodesRequired = peakMbPerMinute > 0 ? (peakMbPerMinute * complexity) / config.headless.mbPerMinutePerNode : 0;
-                const nonHaNodesRequired = Math.ceil(nodesRequired);
-                const haNodesRequired = Math.ceil(Math.max(nodesRequired * config.ha.bufferMultiplier, config.ha.minNodes));
-                
-                const maxCapacity = (haNodesRequired * config.headless.mbPerMinutePerNode) / complexity;
-                const capacityHeadroomPeak = peakMbPerMinute > 0 ? ((maxCapacity / peakMbPerMinute) - 1) * 100 : 0;
-                const capacityHeadroomAvg = avgMbPerMinute > 0 ? ((maxCapacity / avgMbPerMinute) - 1) * 100 : 0;
-                
-                outputs = {
-                    avgMbPerMinute, peakMbPerMinute, nodesRequired, nonHaNodesRequired, haNodesRequired, maxCapacity,
-                    capacityHeadroomPeak, capacityHeadroomAvg
-                }
-            }
-            return { inputs, outputs };
-        }
-
-        function calculateHeadlessUltra() {
-            const { outputs } = getHeadlessCalculationResults();
-            const isMicrobatching = document.getElementById('toggle-switch-headless').checked;
-
-            if (isMicrobatching) {
-                 const details = [
-                    { label: 'Avg. Concurrent Events', value: `${outputs.avgEventsPerSecond.toFixed(2)} / sec` },
-                    { label: 'Peak Concurrent Events', value: `${outputs.concurrentEvents.toFixed(2)} / sec` },
-                    { label: 'Effective Throughput / Node', value: `${outputs.effectiveNodeThroughput.toFixed(2)} / sec`},
-                ];
-                const results = [
-                     { label: 'Exec Nodes (Non-HA)', value: outputs.nonHaNodesRequired },
-                     { label: 'Exec Nodes (HA)', value: outputs.haNodesRequired }
-                ];
-                const detailsExtra = {
-                    raw: { label: 'Max Concurrent Events', value: `${outputs.maxCapacity.toFixed(2)} / sec` },
-                    peak: { label: 'Headroom vs. Peak', value: outputs.capacityHeadroomPeak.toFixed(1) },
-                    avg: { label: 'Headroom vs. Average', value: outputs.capacityHeadroomAvg.toFixed(1) }
-                };
-                document.getElementById('result-headless').innerHTML = generateResultCard(
-                    'Headless Ultra Sizing (Event Freq.)',
-                    results,
-                    details,
-                    detailsExtra
-                );
-            } else {
-                const details = [
-                    { label: 'Avg. Throughput', value: `${outputs.avgMbPerMinute.toFixed(2)} MB/min` },
-                    { label: 'Peak Throughput', value: `${outputs.peakMbPerMinute.toFixed(2)} MB/min` }
-                ];
-                const results = [
-                     { label: 'Exec Nodes (Non-HA)', value: outputs.nonHaNodesRequired },
-                     { label: 'Exec Nodes (HA)', value: outputs.haNodesRequired }
-                ];
-                const detailsExtra = {
-                    raw: { label: 'Max Throughput', value: `${outputs.maxCapacity.toFixed(2)} MB/min` },
-                    peak: { label: 'Headroom vs. Peak', value: outputs.capacityHeadroomPeak.toFixed(1) },
-                    avg: { label: 'Headroom vs. Average', value: outputs.capacityHeadroomAvg.toFixed(1) }
-                };
-                document.getElementById('result-headless').innerHTML = generateResultCard(
-                    'Headless Ultra Sizing (Data Volume)',
-                    results,
-                    details,
-                    detailsExtra
-                );
-            }
-        }
-        
-        // --- Export & Modal Logic ---
-        function exportData(tabName) {
-            let data;
-            const explanation = { ...EXPORT_EXPLANATIONS }; // Create a copy
-            
-            if (tabName === 'triggered') {
-                const { inputs, outputs } = getTriggeredCalculationResults();
-                data = {
-                    calculationType: 'Triggered Task',
-                    explanation: { ...explanation, fieldGlossary: explanation.glossary.triggered },
-                    inputs: {
-                        apiRequests: { value: inputs.requests, unit: inputs.unit },
-                        coverageDays: { value: inputs.coverageDays },
-                        coverageHours: { value: inputs.coverageHours },
-                        peakLoadPercentage: { value: inputs.peak },
-                        complexity: { value: inputs.complexity }
-                    },
-                    outputs: {
-                        assumedResponseTime: { value: inputs.assumedResponseTime },
-                        avgRequestsPerSecond: { value: outputs.avgRequestsPerSecond.toFixed(4) },
-                        peakRequestsPerSecond: { value: outputs.concurrentAPI.toFixed(4) },
-                        effectiveThroughputPerNode: { value: outputs.effectiveNodeThroughput.toFixed(2) },
-                        rawNodesRequired: { value: outputs.nodesRequired.toFixed(4) },
-                        nodesRequiredNonHA: { value: outputs.nonHaNodesRequired },
-                        nodesRequiredHA: { value: outputs.haNodesRequired },
-                        maxCapacityHA: { value: outputs.maxCapacity.toFixed(2) },
-                        headroomVsPeak: { value: `${outputs.capacityHeadroomPeak.toFixed(1)}%` },
-                        headroomVsAverage: { value: `${outputs.capacityHeadroomAvg.toFixed(1)}%` }
-                    }
-                };
-            } else if (tabName === 'ultra') {
-                const { inputs, outputs } = getUltraCalculationResults();
-                 data = {
-                    calculationType: 'Ultra Task',
-                    explanation: { ...explanation, fieldGlossary: explanation.glossary.ultra },
-                    inputs: {
-                        apiRequests: { value: inputs.requests, unit: inputs.unit },
-                        coverageDays: { value: inputs.coverageDays },
-                        coverageHours: { value: inputs.coverageHours },
-                        peakLoadPercentage: { value: inputs.peak },
-                        complexity: { value: inputs.complexity }
-                    },
-                    outputs: {
-                        assumedResponseTime: { value: inputs.assumedResponseTime },
-                        avgRequestsPerSecond: { value: outputs.avgRequestsPerSecond.toFixed(4) },
-                        peakRequestsPerSecond: { value: outputs.concurrentAPI.toFixed(4) },
-                        effectiveThroughputPerExecNode: { value: outputs.effectiveExecNodeThroughput.toFixed(2) },
-                        effectiveThroughputPerFMNode: { value: outputs.effectiveFmNodeThroughput.toFixed(2) },
-                        execNodesNonHA: { value: outputs.nonHaExecNodes },
-                        execNodesHA: { value: outputs.haExecNodes },
-                        fmNodesNonHA: { value: outputs.nonHaFmNodes },
-                        fmNodesHA: { value: outputs.haFmNodes },
-                        maxCapacityHA: { value: outputs.maxCapacity.toFixed(2) },
-                        headroomVsPeak: { value: `${outputs.capacityHeadroomPeak.toFixed(1)}%` },
-                        headroomVsAverage: { value: `${outputs.capacityHeadroomAvg.toFixed(1)}%` }
-                    }
-                };
-            } else if (tabName === 'scheduled') {
-                const { inputs, outputs } = getScheduledCalculationResults();
-                data = {
-                    calculationType: 'Scheduled Task',
-                    explanation: { ...explanation, fieldGlossary: explanation.glossary.scheduled },
-                    inputs: {
-                        batchSize: { value: inputs.batchSizeInput, unit: inputs.unit },
-                        processWindowHours: { value: inputs.processTime },
-                        complexityMultiplier: { value: inputs.complexityMultiplier }
-                    },
-                    outputs: {
-                        requiredThroughput: { value: `${outputs.mbPerMinute.toFixed(2)} MB/min` },
-                        rawNodesRequired: { value: outputs.nodesRequired.toFixed(4) },
-                        nodesRequiredNonHA: { value: outputs.nonHaNodesRequired },
-                        nodesRequiredHA: { value: outputs.haNodesRequired },
-                        maxCapacityHA: { value: `${outputs.maxCapacity.toFixed(2)} MB/min` },
-                        headroom: { value: `${outputs.capacityHeadroom.toFixed(1)}%` }
-                    }
-                }
-            } else if (tabName === 'headless') {
-                 const { inputs, outputs } = getHeadlessCalculationResults();
-                 if(inputs.sizingMethod === 'Event Frequency'){
-                    data = {
-                        calculationType: 'Headless Ultra (Event Frequency)',
-                        explanation: { ...explanation, fieldGlossary: explanation.glossary.headless.eventFrequency },
-                        inputs: {
-                            eventVolume: { value: inputs.events, unit: inputs.unit },
-                            coverageHours: { value: inputs.coverageHours },
-                            peakLoadPercentage: { value: inputs.peak }
-                        },
-                        outputs: {
-                           avgEventsPerSecond: { value: outputs.avgEventsPerSecond.toFixed(4) },
-                           peakEventsPerSecond: { value: outputs.concurrentEvents.toFixed(4) },
-                           effectiveThroughputPerNode: { value: outputs.effectiveNodeThroughput.toFixed(2) },
-                           execNodesNonHA: { value: outputs.nonHaNodesRequired },
-                           execNodesHA: { value: outputs.haNodesRequired },
-                           maxCapacityHA: { value: `${outputs.maxCapacity.toFixed(2)} events/sec` },
-                           headroomVsPeak: { value: `${outputs.capacityHeadroomPeak.toFixed(1)}%` },
-                           headroomVsAverage: { value: `${outputs.capacityHeadroomAvg.toFixed(1)}%` }
-                        }
-                    };
-                 } else { // Data Volume
-                    data = {
-                        calculationType: 'Headless Ultra (Data Volume)',
-                        explanation: { ...explanation, fieldGlossary: explanation.glossary.headless.dataVolume },
-                        inputs: {
-                           eventVolumePerDay: { value: inputs.eventsPerDay },
-                           avgMessageSizeBytes: { value: inputs.messageSize },
-                           coverageHours: { value: inputs.coverageHours },
-                           peakLoadPercentage: { value: inputs.peak },
-                           complexityMultiplier: { value: inputs.complexity }
-                        },
-                        outputs: {
-                           avgThroughput: { value: `${outputs.avgMbPerMinute.toFixed(2)} MB/min` },
-                           peakThroughput: { value: `${outputs.peakMbPerMinute.toFixed(2)} MB/min` },
-                           execNodesNonHA: { value: outputs.nonHaNodesRequired },
-                           execNodesHA: { value: outputs.haNodesRequired },
-                           maxCapacityHA: { value: `${outputs.maxCapacity.toFixed(2)} MB/min` },
-                           headroomVsPeak: { value: `${outputs.capacityHeadroomPeak.toFixed(1)}%` },
-                           headroomVsAverage: { value: `${outputs.capacityHeadroomAvg.toFixed(1)}%` }
-                        }
-                    };
-                 }
-            }
-            delete data.explanation.glossary; // Clean up the glossary from the root explanation object
-            
-            const jsonString = JSON.stringify(data, null, 2);
-            document.getElementById('export-json').textContent = jsonString;
-            document.getElementById('export-modal').classList.remove('hidden');
-            document.getElementById('export-modal').classList.add('flex');
-        }
-
-        function closeExportModal() {
-            document.getElementById('export-modal').classList.add('hidden');
-            document.getElementById('export-modal').classList.remove('flex');
-        }
-        
-        function copyJsonToClipboard() {
-            const jsonText = document.getElementById('export-json').textContent;
-            navigator.clipboard.writeText(jsonText).then(() => {
-                const copyButton = document.getElementById('copy-button');
-                copyButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyButton.textContent = 'Copy to Clipboard';
-                }, 2000);
-            });
-        }
-        
-        // Initial calculation on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            calculateTriggered();
-        });
-
-    </script>
-
+    <script src="index.js"></script>
 </body>
 </html>
-
